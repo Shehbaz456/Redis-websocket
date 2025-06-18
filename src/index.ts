@@ -1,21 +1,28 @@
 import express from "express";
 import axios from "axios";
 import Redis from "ioredis";
+import http from "http";
+import { Server } from "socket.io";
 
-const app = express();
+const app = express(); // express server
+const httpServer = http.createServer(app); // http server 
+const io = new Server(httpServer); // socket.io server
+
+io.on("connection", (socket) => {
+  console.log("A user connected", socket.id);
+  socket.on("message", (msg) => {
+    io.emit("server-message", msg);  // broadcast message to all connected clients
+  })
+});
+
 const PORT = process.env.PORT || 8000;
 
 const url =
   "https://api.freeapi.app/api/v1/public/books?page=1&limit=10&inc=kind%252Cid%252Cetag%252CvolumeInfo&query=tech";
 
-// interface CacheStore {
-//   totalPageCount: number;
-// }
-// const cacheStore: CacheStore = {
-//   totalPageCount: 0,
-// };
+  const redis = new Redis({ host: "localhost", port: Number(6379) });
 
-const redis = new Redis({ host: "localhost", port: Number(6379) });
+app.use(express.static("./public")); 
 
 app.use(async function (req, res, next) {
   const key = "rate-limit";
@@ -56,10 +63,7 @@ app.get("/books/total", async (req, res) => {
       console.log(`Cached Hit`);
       return res.json({ totalPageCount: Number(cachedValue) });
     }
-    // if (cacheStore.totalPageCount) {
-    //   console.log(`Cached Hit`);
-    //   return res.json({ totalPageCount: Number(cacheStore.totalPageCount) });
-    // }
+
 
     const response = await axios.get(url);
     const totalPageCount = response.data?.data?.data.reduce(
@@ -73,8 +77,6 @@ app.get("/books/total", async (req, res) => {
     // set cached
     await redis.set("TotalPageCount", totalPageCount);
 
-    // cacheStore.totalPageCount = Number(totalPageCount);
-
     console.log(`Cached Miss`);
 
     return res.json({ totalPageCount });
@@ -84,6 +86,7 @@ app.get("/books/total", async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+
+httpServer.listen(PORT, () => {
+  console.log(`HTTP Server is running on port ${PORT}`);
 });

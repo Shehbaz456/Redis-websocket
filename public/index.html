@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Socket.IO Client</title>
+  </head>
+  <body>
+    <h1>Socket.IO Client</h1>
+    <form id="messageForm">
+      <input
+        type="text"
+        id="messageInput"
+        placeholder="Type your message here"
+        required
+      />
+      <button id="sendBtn" type="submit">Send</button>
+
+      <div id="messages">
+        <ul id="messageContainer">
+          <li>hello</li>
+        </ul>
+      </div>
+    </form>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io(); // connect to the backend over websocket
+      
+        const messageForm = document.getElementById("messageForm");
+      const messageInput = document.getElementById("messageInput");
+      const messageContainer = document.getElementById("messageContainer");
+      const sendbtn = document.getElementById("sendBtn");
+
+
+     socket.on("server-message", (msg) => {
+        const li = document.createElement("li"); 
+         li.innerText = msg;
+         console.log(msg);
+         console.log(li);
+         
+        messageContainer.appendChild(li);
+      });
+
+      
+      sendbtn.addEventListener("click", (e) => {
+        e.preventDefault(); 
+        const message = messageInput.value; 
+        if (message) {
+          socket.emit("message", message);
+          messageInput.value = ""; 
+        }
+      });
+    </script>
+  </body>
+</html>

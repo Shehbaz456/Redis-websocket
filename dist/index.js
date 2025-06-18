@@ -15,16 +15,22 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const axios_1 = __importDefault(require("axios"));
 const ioredis_1 = __importDefault(require("ioredis"));
-const app = (0, express_1.default)();
+const http_1 = __importDefault(require("http"));
+const socket_io_1 = require("socket.io");
+const app = (0, express_1.default)(); // express server
+const httpServer = http_1.default.createServer(app); // http server for socket.io
+const io = new socket_io_1.Server(httpServer); // socket.io server
+// io.attach(httpServer); // attach socket.io to the http server
+io.on("connection", (socket) => {
+    console.log("A user connected", socket.id);
+    socket.on("message", (msg) => {
+        io.emit("server-message", msg); // broadcast message to all connected clients
+    });
+});
 const PORT = process.env.PORT || 8000;
 const url = "https://api.freeapi.app/api/v1/public/books?page=1&limit=10&inc=kind%252Cid%252Cetag%252CvolumeInfo&query=tech";
-// interface CacheStore {
-//   totalPageCount: number;
-// }
-// const cacheStore: CacheStore = {
-//   totalPageCount: 0,
-// };
 const redis = new ioredis_1.default({ host: "localhost", port: Number(6379) });
+app.use(express_1.default.static("./public")); // serve static files from the public directory
 app.use(function (req, res, next) {
     return __awaiter(this, void 0, void 0, function* () {
         const key = "rate-limit";
@@ -80,6 +86,9 @@ app.get("/books/total", (req, res) => __awaiter(void 0, void 0, void 0, function
         return res.status(500).json({ error: "Failed to fetch books" });
     }
 }));
-app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+// app.listen(PORT, () => {
+//   console.log(`Server is running on port ${PORT}`);
+// });
+httpServer.listen(PORT, () => {
+    console.log(`HTTP Server is running on port ${PORT}`);
 });
