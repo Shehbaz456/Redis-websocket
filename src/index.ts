@@ -6,7 +6,7 @@ import { Server } from "socket.io";
 
 const app = express(); // express server
 
-const state = [];
+const state = new Array(1000).fill(false); 
 
 const httpServer = http.createServer(app); // http server 
 const io = new Server(httpServer); // socket.io server
@@ -19,6 +19,7 @@ io.on("connection", (socket) => {
   })
 
   socket.on("checkbox-update", (data) => {
+    state[data.index] = data.value; // update the state based on checkbox changes
     io.emit("checkbox-update", data); 
   });
 });
@@ -41,12 +42,16 @@ app.use(async function (req, res, next) {
     await redis.expire(key, 60);
   }
 
-  if (Number(value) > 10) {
+  if (Number(value) > 200) {
     return res.status(429).json({ message: "To many Requests" });
   }
 
   redis.incr(key);
   next();
+});
+
+app.get("/state", (req, res) => {
+  return res.json({ state });
 });
 
 app.get("/", (req, res) => {

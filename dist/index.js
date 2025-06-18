@@ -18,7 +18,7 @@ const ioredis_1 = __importDefault(require("ioredis"));
 const http_1 = __importDefault(require("http"));
 const socket_io_1 = require("socket.io");
 const app = (0, express_1.default)(); // express server
-const state = [];
+const state = new Array(1000).fill(false);
 const httpServer = http_1.default.createServer(app); // http server 
 const io = new socket_io_1.Server(httpServer); // socket.io server
 io.on("connection", (socket) => {
@@ -27,6 +27,7 @@ io.on("connection", (socket) => {
         io.emit("server-message", msg); // broadcast message to all connected clients
     });
     socket.on("checkbox-update", (data) => {
+        state[data.index] = data.value; // update the state based on checkbox changes
         io.emit("checkbox-update", data);
     });
 });
@@ -42,12 +43,15 @@ app.use(function (req, res, next) {
             yield redis.set(key, 0);
             yield redis.expire(key, 60);
         }
-        if (Number(value) > 10) {
+        if (Number(value) > 200) {
             return res.status(429).json({ message: "To many Requests" });
         }
         redis.incr(key);
         next();
     });
+});
+app.get("/state", (req, res) => {
+    return res.json({ state });
 });
 app.get("/", (req, res) => {
     return res.json({ message: "Hello, World!" });

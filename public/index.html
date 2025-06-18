@@ -27,70 +27,44 @@
   </head>
   <body>
     <h1>Socket.IO Client</h1>
-    <form id="messageForm">
-      <input
-        type="text"
-        id="messageInput"
-        placeholder="Type your message here"
-        required
-      />
-      <button id="sendBtn" type="submit">Send</button>
-
-      <div id="messages">
-        <ul id="messageContainer">
-          <li>hello</li>
-        </ul>
-      </div>
-    </form>
-
-    <h1>Socket.IO Client</h1>
     <div id="checkbox-container"></div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
-      const checkboxes = new Array(500).fill(0);
+      const checkboxes = new Array(1000).fill(0);
       const checkboxContainer = document.getElementById("checkbox-container");
       checkboxes.forEach((checkbox, i) => {
         const input = document.createElement("input");
         input.setAttribute("type", "checkbox");
         input.id = `index-${i}`;
-        input.classList.add('custom-checkbox'); 
-        input.addEventListener('change',(e)=>{
-          console.log(input.checked);
-          socket.emit('checkbox-update',{index:i,value:input.checked})
-        })
+        input.classList.add("custom-checkbox");
+        input.addEventListener("change", (e) => {
+          // console.log(input.checked);
+          socket.emit("checkbox-update", { index: i, value: input.checked });
+        });
         checkboxContainer.append(input);
       });
       const socket = io(); // connect to the backend over websocket
 
-      const messageInput = document.getElementById("messageInput");
-      const messageContainer = document.getElementById("messageContainer");
-      const sendbtn = document.getElementById("sendBtn");
-
-      socket.on('checkbox-update',({index,value})=>{
-        const e = document.getElementById(`index-${index}`);
-        if(e){
-          e.checked = true;
+      async function stateUpdate() {
+        const resp = await fetch("/state", {
+          headers: { "Content-type": "application/json" },
+        });
+        const _json = await resp.json();
+        if (_json.state) {
+          _json.state.forEach((e, index) => {
+            const el = document.getElementById(`index-${index}`);
+            el.checked = e;
+          });
         }
-      })
+        console.log({ _json });
+      }
 
-      socket.on("server-message", (msg) => {
-        const li = document.createElement("li");
-        li.innerText = msg;
-        console.log(msg);
-        console.log(li);
-
-        messageContainer.appendChild(li);
+      socket.on("checkbox-update", ({ index, value }) => {
+        stateUpdate();
       });
 
-      sendbtn.addEventListener("click", (e) => {
-        e.preventDefault();
-        const message = messageInput.value;
-        if (message) {
-          socket.emit("message", message);
-          messageInput.value = "";
-        }
-      });
+      stateUpdate();
     </script>
   </body>
 </html>
