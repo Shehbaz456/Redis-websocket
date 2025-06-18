@@ -4,6 +4,26 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Socket.IO Client</title>
+    <style>
+      .custom-checkbox {
+        width: 24px;
+        height: 24px;
+        cursor: pointer;
+        accent-color: #4f46e5; /* Optional: Custom color for supported browsers */
+        transition: transform 0.2s ease, box-shadow 0.3s ease;
+      }
+
+      /* On hover: scale and shadow */
+      .custom-checkbox:hover {
+        transform: scale(1.2);
+        box-shadow: 0 0 5px rgba(79, 70, 229, 0.5);
+      }
+
+      /* On checked: glowing border */
+      .custom-checkbox:checked {
+        box-shadow: 0 0 10px rgba(79, 70, 229, 0.8);
+      }
+    </style>
   </head>
   <body>
     <h1>Socket.IO Client</h1>
@@ -23,32 +43,52 @@
       </div>
     </form>
 
+    <h1>Socket.IO Client</h1>
+    <div id="checkbox-container"></div>
+
     <script src="/socket.io/socket.io.js"></script>
     <script>
-        const socket = io(); // connect to the backend over websocket
-      
-        const messageForm = document.getElementById("messageForm");
+      const checkboxes = new Array(500).fill(0);
+      const checkboxContainer = document.getElementById("checkbox-container");
+      checkboxes.forEach((checkbox, i) => {
+        const input = document.createElement("input");
+        input.setAttribute("type", "checkbox");
+        input.id = `index-${i}`;
+        input.classList.add('custom-checkbox'); 
+        input.addEventListener('change',(e)=>{
+          console.log(input.checked);
+          socket.emit('checkbox-update',{index:i,value:input.checked})
+        })
+        checkboxContainer.append(input);
+      });
+      const socket = io(); // connect to the backend over websocket
+
       const messageInput = document.getElementById("messageInput");
       const messageContainer = document.getElementById("messageContainer");
       const sendbtn = document.getElementById("sendBtn");
 
+      socket.on('checkbox-update',({index,value})=>{
+        const e = document.getElementById(`index-${index}`);
+        if(e){
+          e.checked = true;
+        }
+      })
 
-     socket.on("server-message", (msg) => {
-        const li = document.createElement("li"); 
-         li.innerText = msg;
-         console.log(msg);
-         console.log(li);
-         
+      socket.on("server-message", (msg) => {
+        const li = document.createElement("li");
+        li.innerText = msg;
+        console.log(msg);
+        console.log(li);
+
         messageContainer.appendChild(li);
       });
 
-      
       sendbtn.addEventListener("click", (e) => {
-        e.preventDefault(); 
-        const message = messageInput.value; 
+        e.preventDefault();
+        const message = messageInput.value;
         if (message) {
           socket.emit("message", message);
-          messageInput.value = ""; 
+          messageInput.value = "";
         }
       });
     </script>

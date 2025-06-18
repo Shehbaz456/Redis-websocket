@@ -5,14 +5,22 @@ import http from "http";
 import { Server } from "socket.io";
 
 const app = express(); // express server
+
+const state = [];
+
 const httpServer = http.createServer(app); // http server 
 const io = new Server(httpServer); // socket.io server
+
 
 io.on("connection", (socket) => {
   console.log("A user connected", socket.id);
   socket.on("message", (msg) => {
     io.emit("server-message", msg);  // broadcast message to all connected clients
   })
+
+  socket.on("checkbox-update", (data) => {
+    io.emit("checkbox-update", data); 
+  });
 });
 
 const PORT = process.env.PORT || 8000;

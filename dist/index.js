@@ -18,19 +18,22 @@ const ioredis_1 = __importDefault(require("ioredis"));
 const http_1 = __importDefault(require("http"));
 const socket_io_1 = require("socket.io");
 const app = (0, express_1.default)(); // express server
-const httpServer = http_1.default.createServer(app); // http server for socket.io
+const state = [];
+const httpServer = http_1.default.createServer(app); // http server 
 const io = new socket_io_1.Server(httpServer); // socket.io server
-// io.attach(httpServer); // attach socket.io to the http server
 io.on("connection", (socket) => {
     console.log("A user connected", socket.id);
     socket.on("message", (msg) => {
         io.emit("server-message", msg); // broadcast message to all connected clients
     });
+    socket.on("checkbox-update", (data) => {
+        io.emit("checkbox-update", data);
+    });
 });
 const PORT = process.env.PORT || 8000;
 const url = "https://api.freeapi.app/api/v1/public/books?page=1&limit=10&inc=kind%252Cid%252Cetag%252CvolumeInfo&query=tech";
 const redis = new ioredis_1.default({ host: "localhost", port: Number(6379) });
-app.use(express_1.default.static("./public")); // serve static files from the public directory
+app.use(express_1.default.static("./public"));
 app.use(function (req, res, next) {
     return __awaiter(this, void 0, void 0, function* () {
         const key = "rate-limit";
@@ -68,16 +71,11 @@ app.get("/books/total", (req, res) => __awaiter(void 0, void 0, void 0, function
             console.log(`Cached Hit`);
             return res.json({ totalPageCount: Number(cachedValue) });
         }
-        // if (cacheStore.totalPageCount) {
-        //   console.log(`Cached Hit`);
-        //   return res.json({ totalPageCount: Number(cacheStore.totalPageCount) });
-        // }
         const response = yield axios_1.default.get(url);
         const totalPageCount = (_b = (_a = response.data) === null || _a === void 0 ? void 0 : _a.data) === null || _b === void 0 ? void 0 : _b.data.reduce((acc, curr) => { var _a; return !((_a = curr.volumeInfo) === null || _a === void 0 ? void 0 : _a.pageCount) ? 0 : curr.volumeInfo.pageCount + acc; }, 0);
         console.log("total Page ", totalPageCount);
         // set cached
         yield redis.set("TotalPageCount", totalPageCount);
-        // cacheStore.totalPageCount = Number(totalPageCount);
         console.log(`Cached Miss`);
         return res.json({ totalPageCount });
     }
@@ -86,9 +84,6 @@ app.get("/books/total", (req, res) => __awaiter(void 0, void 0, void 0, function
         return res.status(500).json({ error: "Failed to fetch books" });
     }
 }));
-// app.listen(PORT, () => {
-//   console.log(`Server is running on port ${PORT}`);
-// });
 httpServer.listen(PORT, () => {
     console.log(`HTTP Server is running on port ${PORT}`);
 });
