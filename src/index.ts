@@ -6,10 +6,30 @@ import { Server } from "socket.io";
 
 const app = express(); // express server
 
-const state = new Array(1000).fill(false); 
+// const state = new Array(1000).fill(false); 
+
+// read and write to redis
+const redis = new Redis({ host: "localhost", port: Number(6379) });
+
+const publisher = new Redis({ host: "localhost", port: Number(6379) }); // publisher for redis
+const subscriber = new Redis({ host: "localhost", port: Number(6379) }); // subscriber for redis
 
 const httpServer = http.createServer(app); // http server 
 const io = new Server(httpServer); // socket.io server
+
+const stateKey = "state";
+
+redis.setnx(stateKey, JSON.stringify(new Array(1000).fill(false))); // initialize state in redis
+
+subscriber.subscribe("server:broker");
+subscriber.on("message", (channel, message) => {
+  if (channel === "server:broker") {
+    const {event,data} = JSON.parse(message);
+    if (event === "checkbox-update") {
+      io.emit(event, data); // emit checkbox updates to all connected clients
+    }
+  }
+});
 
 
 io.on("connection", (socket) => {
@@ -18,18 +38,26 @@ io.on("connection", (socket) => {
     io.emit("server-message", msg);  // broadcast message to all connected clients
   })
 
-  socket.on("checkbox-update", (data) => {
-    state[data.index] = data.value; // update the state based on checkbox changes
-    io.emit("checkbox-update", data); 
+  socket.on("checkbox-update", async (data) => {
+    const state = await redis.get(stateKey);
+    if(state){
+      const parsedState = JSON.parse(state);
+      parsedState[data.index] = data.value;
+      await redis.set(stateKey, JSON.stringify(parsedState)); // update the state in redis
+    }
+
+
+    await publisher.publish("server:broker", JSON.stringify({event: "checkbox-update", data})); // publish checkbox updates to redis
+    // state[data.index] = data.value; // update the state based on checkbox changes
+    // io.emit("checkbox-update", data); 
   });
 });
 
-const PORT = process.env.PORT || 8000;
+const PORT = process.env.PORT ?? 8000;
 
 const url =
   "https://api.freeapi.app/api/v1/public/books?page=1&limit=10&inc=kind%252Cid%252Cetag%252CvolumeInfo&query=tech";
 
-  const redis = new Redis({ host: "localhost", port: Number(6379) });
 
 app.use(express.static("./public")); 
 
@@ -50,8 +78,12 @@ app.use(async function (req, res, next) {
   next();
 });
 
-app.get("/state", (req, res) => {
-  return res.json({ state });
+app.get("/state", async(req, res) => {
+    const state = await redis.get(stateKey);
+  if(state){
+    return res.json({ state: JSON.parse(state) });
+  }
+  return res.json({ state :[]});
 });
 
 app.get("/", (req, res) => {
